@@ -12,7 +12,7 @@ Open Android Terminal and run:
 curl -fsSL https://raw.githubusercontent.com/eladrave/setupscript/main/AndroidLinux/android-linux-xfce.sh | bash
 ```
 
-The script installs XFCE and Labwc, disables the conflicting LightDM service, installs a persistent launcher at `~/.local/bin/android-linux-xfce`, and enables guarded autostart in `~/.bashrc`.
+The script installs XFCE, Labwc, and the X11 readiness probe; disables the conflicting LightDM service; installs a persistent launcher at `~/.local/bin/android-linux-xfce`; and enables guarded autostart in `~/.bashrc`.
 
 Autostart is enabled by default. When Android Terminal opens after a VM or phone restart, the launcher starts automatically. Android still requires this graphical handoff:
 
@@ -21,7 +21,7 @@ Autostart is enabled by default. When Android Terminal opens after a VM or phone
 3. Press Enter.
 4. If XFCE appears inside a window named `wlroots - X11-1`, maximize it or press `Alt+F10`.
 
-The hook runs only in an interactive local shell, skips SSH sessions, and avoids starting a second XFCE session.
+The hook runs only in an interactive local shell, skips SSH sessions, and avoids starting a second XFCE session. After you press Enter, the launcher waits up to 30 seconds for Android's X display before starting Labwc. This avoids the `Failed to open xcb connection` startup race.
 
 ### Launcher options
 
@@ -81,6 +81,8 @@ warp-terminal
 If commands suddenly report `Input/output error`, use the Android Terminal notification's **Quit** action, reboot the phone, and run the relevant script again. Do not reset the Linux VM unless you intend to erase it.
 
 The XFCE notification daemon may warn that the Wayland compositor does not support `wlr-layer-shell`. That warning does not prevent the desktop from running.
+
+Messages about XWayland falling back to software rendering, missing logind sessions, light-locker, colord, or systemd sleep inhibition are expected limitations of the nested Android desktop and are normally nonfatal.
 
 ## Upstream installation sources
 
