@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Enable automatic XFCE startup for an existing Android Linux installation.
+
+set -Eeuo pipefail
+
+SCRIPT_URL="https://raw.githubusercontent.com/eladrave/setupscript/main/AndroidLinux/android-linux-xfce.sh"
+LAUNCHER_PATH="$HOME/.local/bin/android-linux-xfce"
+AUTOSTART_BEGIN="# >>> android-linux-xfce autostart >>>"
+AUTOSTART_END="# <<< android-linux-xfce autostart <<<"
+TEMP_FILES=()
+
+log() {
+    printf '[android-xfce-autostart] %s\n' "$*"
+}
+
+die() {
+    printf '[android-xfce-autostart] ERROR: %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    local path
+    for path in "${TEMP_FILES[@]}"; do
+        [[ -n "$path" ]] && rm -f -- "$path"
+    done
+}
+
+trap cleanup EXIT
+
+if (( EUID == 0 )); then
+    die "Run this as the normal droid user, not as root."
+fi
+
+if [[ ! -f /usr/local/bin/enable_display ]]; then
+    die "This script only supports Android's built-in Linux Terminal VM."
+fi
+
+command -v curl >/dev/null 2>&1 || die "curl is required. Install it with: sudo apt install -y curl"
+
+if ! command -v flock >/dev/null 2>&1; then
+    command -v sudo >/dev/null 2>&1 || die "flock is required. Install the util-linux package."
+    log "Installing the autostart lock dependency..."
+    sudo apt update
+    sudo apt install -y util-linux
+fi
+
+download_path="$(mktemp)"
+TEMP_FILES+=("$download_path")
+
+log "Downloading the latest Android Linux XFCE launcher..."
+curl -fsSL --retry 3 "$SCRIPT_URL" -o "$download_path"
+bash -n "$download_path"
+
+mkdir -p -- "${LAUNCHER_PATH%/*}"
+install -m 0755 -- "$download_path" "$LAUNCHER_PATH"
+
+bashrc_path="$HOME/.bashrc"
+touch "$bashrc_path"
+rewritten_path="$(mktemp "${bashrc_path}.XXXXXX")"
+TEMP_FILES+=("$rewritten_path")
+
+awk -v begin="$AUTOSTART_BEGIN" -v end="$AUTOSTART_END" '
+    $0 == begin { skipping = 1; next }
+    $0 == end   { skipping = 0; next }
+    !skipping   { print }
+' "$bashrc_path" > "$rewritten_path"
+
+cat >> "$rewritten_path" <<'EOF'
+
+# >>> android-linux-xfce autostart >>>
+if [[ $- == *i* ]] && [[ -z "${SSH_CONNECTION:-}" ]] && [[ -z "${ANDROID_XFCE_NO_AUTOSTART:-}" ]]; then
+    _android_xfce_launcher="$HOME/.local/bin/android-linux-xfce"
+    _android_xfce_runtime="${XDG_RUNTIME_DIR:-/tmp}"
+    if [[ ! -d "$_android_xfce_runtime" ]] || [[ ! -w "$_android_xfce_runtime" ]]; then
+        _android_xfce_runtime="/tmp"
+    fi
+    _android_xfce_lock="${_android_xfce_runtime%/}/android-xfce-autostart-${UID}.lock"
+
+    if [[ -x "$_android_xfce_launcher" ]] && command -v flock >/dev/null 2>&1; then
+        exec 9>"$_android_xfce_lock"
+        if flock -n 9 && ! pgrep -u "$USER" -x xfce4-session >/dev/null 2>&1; then
+            "$_android_xfce_launcher" --no-autostart || true
+        fi
+        exec 9>&-
+    fi
+
+    unset _android_xfce_launcher _android_xfce_runtime _android_xfce_lock
+fi
+# <<< android-linux-xfce autostart <<<
+EOF
+
+chmod --reference="$bashrc_path" "$rewritten_path"
+mv -f -- "$rewritten_path" "$bashrc_path"
+
+log "Autostart is enabled."
+log "Open a new Android Terminal session, then tap the display button when prompted."
