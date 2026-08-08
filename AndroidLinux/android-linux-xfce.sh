@@ -161,10 +161,34 @@ EOF
     log "Persistent launcher installed at $LAUNCHER_PATH."
 }
 
+wait_for_x11_display() {
+    local attempt
+
+    export DISPLAY="${DISPLAY:-:0}"
+
+    for (( attempt = 1; attempt <= 30; attempt++ )); do
+        if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+            log "Android display $DISPLAY is ready."
+            return 0
+        fi
+
+        log "Waiting for Android display $DISPLAY... ($attempt/30)"
+        sleep 1
+    done
+
+    printf '\n[android-xfce] Android display %s did not become ready.\n' "$DISPLAY" >&2
+    printf '[android-xfce] X11 sockets:\n' >&2
+    ls -la /tmp/.X11-unix >&2 2>&1 || true
+    printf '\n[android-xfce] Weston service status:\n' >&2
+    systemctl --user --no-pager -l status weston.service >&2 2>&1 || true
+    die "Tap the display button, keep the display activity open, and try again."
+}
+
 needs_setup=false
 command -v startxfce4 >/dev/null 2>&1 || needs_setup=true
 command -v labwc >/dev/null 2>&1 || needs_setup=true
 command -v flock >/dev/null 2>&1 || needs_setup=true
+command -v xdpyinfo >/dev/null 2>&1 || needs_setup=true
 
 setup_desktop() {
     log "Checking Debian package configuration..."
@@ -175,7 +199,7 @@ setup_desktop() {
     sudo apt update
 
     log "Installing XFCE and the Labwc Wayland compositor..."
-    sudo apt install -y task-xfce-desktop labwc util-linux
+    sudo apt install -y task-xfce-desktop labwc util-linux x11-utils
 
     log "Keeping the VM in console mode so LightDM does not compete with Android's Weston display service..."
     sudo systemctl set-default multi-user.target
@@ -218,6 +242,13 @@ if [[ ! -r /dev/tty ]]; then
     die "No interactive terminal is available for the display confirmation."
 fi
 read -r </dev/tty
+
+wait_for_x11_display
+
+# Android's display bridge exposes an X11 server. Force Labwc to use the
+# nested X11 backend and provide a valid keyboard layout if Android did not.
+export WLR_BACKENDS=x11
+export XKB_DEFAULT_LAYOUT="${XKB_DEFAULT_LAYOUT:-us}"
 
 log "Starting XFCE. The desktop may initially appear inside a window."
 log "Use the window's maximize button or Alt+F10 to fill the display."
