@@ -100,6 +100,22 @@ The installer detects `arm64` or `amd64`, downloads Warp's matching official Deb
 warp-terminal
 ```
 
+## Install and configure Tailscale
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eladrave/setupscript/main/AndroidLinux/install-tailscale.sh | bash
+```
+
+The installer uses Tailscale's official Linux package installer, enables and starts `tailscaled`, and runs `tailscale up`. Open the URL printed in the terminal to authorize the Linux VM. The daemon is enabled automatically and reconnects whenever the Android Linux VM starts.
+
+For unattended setup, create an auth key in the Tailscale admin console and pass it through the environment. The script stores it briefly in a permission-restricted temporary file so the key is not placed in the `tailscale` command line:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eladrave/setupscript/main/AndroidLinux/install-tailscale.sh | TAILSCALE_AUTH_KEY='tskey-auth-...' bash
+```
+
+Do not commit or permanently store an auth key. Prefer a single-use or otherwise narrowly scoped key.
+
 ## Troubleshooting
 
 If commands suddenly report `Input/output error`, use the Android Terminal notification's **Quit** action, reboot the phone, and run the relevant script again. Do not reset the Linux VM unless you intend to erase it.
@@ -113,3 +129,4 @@ Messages about XWayland falling back to software rendering, missing logind sessi
 - [OpenAI Codex CLI](https://developers.openai.com/codex/cli)
 - [Warp installation documentation](https://docs.warp.dev/getting-started/quickstart/installation-and-setup/)
 - [Google Chrome Debian packages](https://dl.google.com/linux/direct/)
+- [Tailscale Linux installation](https://tailscale.com/docs/install/linux)
