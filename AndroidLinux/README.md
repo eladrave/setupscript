@@ -4,6 +4,30 @@ These scripts configure Android's built-in Linux Development Environment, as ena
 
 They target the Android Terminal Debian VM. They are not intended for Termux, DroidDesk, VNC, or a separately installed Linux container.
 
+## Experimental: automatic XFCE after tapping Display
+
+This alternative is intended for a clean or reset Android Linux environment. It uses a systemd user service linked to Android's Weston service instead of launching the desktop interactively from the shell.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eladrave/setupscript/main/AndroidLinux/android-linux-xfce-systemd.sh | bash
+```
+
+After installation:
+
+1. Tap the monitor/display button.
+2. XFCE starts automatically when Android's X display becomes ready.
+3. You do not need to return to the terminal or press Enter.
+
+After a phone or VM restart, open Android Terminal and tap Display. Android still requires its graphical activity to be opened, but the XFCE session itself is started automatically.
+
+The installer creates:
+
+- `~/.local/bin/android-linux-xfce-session`, which waits for `DISPLAY=:0` and starts XFCE through Labwc.
+- `~/.config/systemd/user/android-xfce.service`, which is enabled as a dependency of `weston.service`.
+- A guarded `~/.bashrc` hook that starts Android's display bridge and ensures the XFCE service is active.
+
+This is separate from the established interactive launcher below. It does not replace or modify `android-linux-xfce.sh` in the repository.
+
 ## Install XFCE and enable autostart
 
 Open Android Terminal and run:
